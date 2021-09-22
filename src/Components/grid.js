@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import { HighriskVoronoi, ClassCounterPie, HistoryCalendar } from './charts';
 import EnhancedTable from './dataTable';
 import ButtonAppBar from './appbar';
-
+import MapScreen from './map';
 const Item = styled(Paper)(({ theme }) => ({
   ...theme.typography.body2,
   padding: theme.spacing(1),
@@ -17,6 +17,7 @@ const Item = styled(Paper)(({ theme }) => ({
 }));
 
 export default function BasicGrid({
+  deviceList,
   recordedAt,
   deviceId,
   voronoi,
@@ -24,6 +25,7 @@ export default function BasicGrid({
   tableData,
   setSelectedIndexs,
   selectedIndexs,
+  setDeviceId,
 }) {
   const [height, setHeight] = useState(0);
   const ref = useRef(null);
@@ -45,12 +47,7 @@ export default function BasicGrid({
           </Item>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Item
-            elevation={0}
-            style={{
-              overflowY: 'scroll',
-            }}
-          >
+          <Item elevation={0}>
             <CardHeader style={{ textAlign: 'left' }} title={'Recent Data'} />
             <div style={{ width: '100%', height: height }}>
               <EnhancedTable
@@ -69,8 +66,10 @@ export default function BasicGrid({
             </div>
           </Item>
         </Grid>
-        <Grid item xs={12} md={6}>
-          <Item>xs=8</Item>
+        <Grid item xs={12} md={12}>
+          <Item>
+            <MapScreen deviceList={deviceList} setDeviceId={setDeviceId} />
+          </Item>
         </Grid>
       </Grid>
     </Box>

@@ -10,7 +10,7 @@ RequestApi.interceptors.request.use(
     const authToken = accessToken && `Bearer ${accessToken}`;
     const isLoginURL = config.url && config.url.includes('authentication');
     const isRegisterURL =
-      config.url && config.url.includes('devices') && config.method === 'post';
+      config.url && config.url.includes('devices') && config.method === 'get';
     if (authToken && (isLoginURL === false || isRegisterURL === false)) {
       config.headers.Authorization = authToken;
     }

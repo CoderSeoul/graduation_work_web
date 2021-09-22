@@ -3,14 +3,17 @@ import BasicGrid from './Components/grid';
 import RequestApi from './Client';
 import dayjs from 'dayjs';
 
+let exDeviceId = 'DVC__000002';
 function App() {
   const [loading, setLoading] = useState(true);
+  const [deviceList, setDeviceList] = useState([]);
   const [deviceId, setDeviceId] = useState('DVC__000002');
-  const [selectedIndexs, setSelectedIndexs] = useState([0]);
+  const [selectedIndexs, setSelectedIndexs] = useState([]);
   const [selectedItem, setSelectedItem] = useState([]);
   const [voronoi, setVoronoi] = useState([]);
   const [classCounter, setClassCounter] = useState({});
   const [tableData, setTableData] = useState([]);
+
   useEffect(() => {
     RequestApi.post('/api/v1/authentication', {
       username: 'test',
@@ -19,28 +22,41 @@ function App() {
       window.localStorage.setItem('token', res);
     });
 
-    RequestApi.get(`/api/v1/device-logs/${deviceId}`).then((res) => {
-      console.log(res);
-      const deviceHistory = res.content.map((item) => {
-        let stringify = item.value;
-        stringify = stringify.replaceAll('*', '"');
-        return {
-          recordedAt: item.recordedAt,
-          value: JSON.parse(stringify),
-        };
-      });
-
-      setSelectedItem(deviceHistory);
-      convertFormat(deviceHistory);
+    RequestApi.get(`/api/v1/devices`).then((res) => {
+      setDeviceList(res.content);
     });
-  }, []);
+
+    RequestApi.get(`/api/v1/device-logs/${deviceId}?size=100`).then((res) => {
+      if (res.totalElements > 0) {
+        exDeviceId = deviceId;
+        const deviceHistory = res.content.map((item) => {
+          let stringify = item.value;
+          stringify = stringify.replaceAll('*', '"');
+          let date = item.recordedAt.replace(
+            /^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$/,
+            '$1-$2-$3 $4:$5:$6'
+          );
+
+          return {
+            recordedAt: date,
+            value: JSON.parse(stringify),
+          };
+        });
+        console.log({ deviceHistory });
+        setSelectedItem(deviceHistory);
+        convertFormat(deviceHistory);
+        setLoading(false);
+      } else {
+        alert('no data!');
+        setDeviceId(exDeviceId);
+      }
+    });
+  }, [deviceId]);
 
   const convertFormat = (deviceHistory) => {
-    const convertedVoronoi = convertVoronoi(
-      deviceHistory[selectedIndexs[0]].value.highRisk
-    );
+    const convertedVoronoi = convertVoronoi(deviceHistory[0].value.highRisk);
     const convertedClassCounter = convertClassCounter(
-      deviceHistory[selectedIndexs[0]].value.classCounter
+      deviceHistory[0].value.classCounter
     );
     const convertedTableData = convertTableData(deviceHistory);
     console.log({ convertedVoronoi });
@@ -49,7 +65,6 @@ function App() {
     setVoronoi(convertedVoronoi);
     setClassCounter(convertedClassCounter);
     setTableData(convertedTableData);
-    setLoading(false);
   };
 
   const convertVoronoi = (list) => {
@@ -97,42 +112,32 @@ function App() {
 
   useEffect(() => {
     if (loading) return;
-
     let voronoi_assemble = [];
     selectedIndexs.forEach((indexItem) => {
-      const tt = convertVoronoi(selectedItem[indexItem].value.highRisk);
+      const index = selectedItem.findIndex((x) => x.recordedAt === indexItem);
+      const tt = convertVoronoi(selectedItem[index].value.highRisk);
       voronoi_assemble = [...voronoi_assemble, ...tt];
     });
 
-    let classCounter_assemble;
-    let classCounter_car_sum = 0;
-    let classCounter_person_sum = 0;
+    let classCounterToSave = [];
+
     selectedIndexs.forEach((indexItem) => {
-      const tt = convertClassCounter(
-        selectedItem[indexItem].value.classCounter
-      );
-      const carIndex = tt.findIndex((obj) => obj.label == 'car');
-      const personIndex = tt.findIndex((obj) => obj.label == 'person');
-
-      classCounter_car_sum += tt[carIndex]?.value || 0;
-      classCounter_person_sum += tt[personIndex]?.value || 0;
+      const index = selectedItem.findIndex((x) => x.recordedAt === indexItem);
+      const tt = convertClassCounter(selectedItem[index].value.classCounter);
+      tt.forEach((ttitem) => {
+        const findIndex = classCounterToSave.findIndex(
+          (obj) => obj.label == ttitem.label
+        );
+        if (findIndex == -1) {
+          classCounterToSave.push(ttitem);
+        } else {
+          classCounterToSave[findIndex].value += ttitem.value;
+        }
+      });
     });
-    classCounter_assemble = {
-      car: Math.round(classCounter_car_sum / selectedIndexs.length),
-      person: Math.round(classCounter_person_sum / selectedIndexs.length),
-    };
-
-    let classCounterToSave = [...classCounter];
-    const carIndex = classCounter.findIndex((obj) => obj.label == 'car');
-    const personIndex = classCounter.findIndex((obj) => obj.label == 'person');
-
-    if (carIndex !== -1)
-      classCounterToSave[carIndex].value = classCounter_assemble.car;
-    if (personIndex !== -1)
-      classCounterToSave[personIndex].value = classCounter_assemble.person;
-
-    console.log({ classCounter_assemble });
-    console.log({ classCounterToSave });
+    classCounterToSave.map((item) => {
+      return (item.value = Math.ceil(item.value / selectedIndexs.length));
+    });
     setVoronoi(voronoi_assemble);
     setClassCounter(classCounterToSave);
   }, [selectedIndexs]);
@@ -142,9 +147,20 @@ function App() {
       style={{ backgroundColor: '#EBEDF1', width: '100vw', height: '100vh' }}
     >
       {loading ? (
-        <div />
+        <div
+          style={{
+            width: '100vw',
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <img src="loading.gif" alt="loading" />
+        </div>
       ) : (
         <BasicGrid
+          deviceList={deviceList}
           deviceId={deviceId}
           recordedAt={selectedItem[selectedIndexs[0]]?.recordedAt || 0}
           voronoi={voronoi}
@@ -152,6 +168,7 @@ function App() {
           tableData={tableData}
           setSelectedIndexs={setSelectedIndexs}
           selectedIndexs={selectedIndexs}
+          setDeviceId={setDeviceId}
         />
       )}
     </div>
