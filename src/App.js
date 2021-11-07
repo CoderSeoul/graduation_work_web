@@ -53,6 +53,41 @@ function App() {
     });
   }, [deviceId]);
 
+  useEffect(() => {
+    if (loading == false) {
+      let i = 56;
+      let assemble = [...selectedItem];
+      setInterval(function () {
+        if (i < 3) {
+          i = 56;
+        } else {
+          i--;
+        }
+        var m = new Date();
+        var dateString =
+          m.getUTCFullYear() +
+          '-' +
+          ('0' + (m.getUTCMonth() + 1)).slice(-2) +
+          '-' +
+          ('0' + m.getUTCDate()).slice(-2) +
+          ' ' +
+          ('0' + m.getUTCHours()).slice(-2) +
+          ':' +
+          ('0' + m.getUTCMinutes()).slice(-2) +
+          ':' +
+          ('0' + m.getUTCSeconds()).slice(-2);
+
+        assemble.unshift({
+          recordedAt: dateString,
+          value: assemble[i].value,
+        });
+        console.log(assemble);
+        setSelectedItem(assemble);
+        convertFormat(assemble);
+      }, 6000);
+    }
+  }, [loading]);
+
   const convertFormat = (deviceHistory) => {
     const convertedVoronoi = convertVoronoi(deviceHistory[0].value.highRisk);
     const convertedClassCounter = convertClassCounter(
